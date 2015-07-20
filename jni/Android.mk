@@ -43,4 +43,4 @@ $(LIBUSB_ROOT_ABS)/jni/libusb-andro/libusb
 LOCAL_CFLAGS += -g -Wall -DLIBUSB_DESCRIBE="" -O3 -fno-builtin-printf -fno-builtin-fprintf
 LOCAL_MODULE:= RtlTcp
 LOCAL_LDLIBS := -lm -llog
-include $(BUILD_SHARED_LIBRARY)
+include $(BUILD_STATIC_LIBRARY)
