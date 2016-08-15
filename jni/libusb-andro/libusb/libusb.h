@@ -4,13 +4,8 @@
  * Copyright © 2007-2008 Daniel Drake <dsd@gentoo.org>
  * Copyright © 2012 Pete Batard <pete@akeo.ie>
  * Copyright © 2012 Nathan Hjelm <hjelmn@cs.unm.edu>
+ * Copyright © 2013-2016 Martin Marinov <martintzvetomirov@gmail.com>
  * For more information, please visit: http://libusb.info
- *
- *  Modified 2014 Martin Marinov <martintzvetomirov@gmail.com>
- *  - Added function open2 to open a devce from an existing file
- *  descriptor
- *  - Added function init2 to init libusb context from a given file path
- *
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -96,7 +91,7 @@ typedef unsigned __int32  uint32_t;
  * Under Windows, the selection of available compilers and configurations
  * means that, unlike other platforms, there is not <em>one true calling
  * convention</em> (calling convention: the manner in which parameters are
- * passed to funcions in the generated assembly code).
+ * passed to functions in the generated assembly code).
  *
  * Matching the Windows API itself, libusb uses the WINAPI convention (which
  * translates to the <tt>stdcall</tt> convention) and guarantees that the
@@ -144,13 +139,10 @@ typedef unsigned __int32  uint32_t;
  * #endif
  * \endcode
  *
- * Another feature of LIBUSB_API_VERSION is that it can be used to detect
- * whether you are compiling against the libusb or the libusb library.
- *
  * Internally, LIBUSB_API_VERSION is defined as follows:
  * (libusb major << 24) | (libusb minor << 16) | (16 bit incremental)
  */
-#define LIBUSB_API_VERSION 0x01000103
+#define LIBUSB_API_VERSION 0x01000104
 
 /* The following is kept for compatibility, but will be deprecated in the future */
 #define LIBUSBX_API_VERSION LIBUSB_API_VERSION
@@ -674,8 +666,9 @@ struct libusb_config_descriptor {
 	uint8_t  bmAttributes;
 
 	/** Maximum power consumption of the USB device from this bus in this
-	 * configuration when the device is fully opreation. Expressed in units
-	 * of 2 mA. */
+	 * configuration when the device is fully operation. Expressed in units
+	 * of 2 mA when the device is operating in high-speed mode and in units
+	 * of 8 mA when the device is operating in super-speed mode. */
 	uint8_t  MaxPower;
 
 	/** Array of interfaces supported by this configuration. The length of
@@ -906,7 +899,6 @@ struct libusb_control_setup {
 struct libusb_context;
 struct libusb_device;
 struct libusb_device_handle;
-struct libusb_hotplug_callback;
 
 /** \ingroup lib
  * Structure providing the version of the libusb runtime
@@ -1310,7 +1302,6 @@ enum libusb_log_level {
 };
 
 int LIBUSB_CALL libusb_init(libusb_context **ctx);
-int LIBUSB_CALL libusb_init2(libusb_context **ctx, const char * uspfs_path_input);
 void LIBUSB_CALL libusb_exit(libusb_context *ctx);
 void LIBUSB_CALL libusb_set_debug(libusb_context *ctx, int level);
 const struct libusb_version * LIBUSB_CALL libusb_get_version(void);
@@ -1381,6 +1372,7 @@ int LIBUSB_CALL libusb_open(libusb_device *dev, libusb_device_handle **handle);
 int LIBUSB_CALL libusb_open2(libusb_device *dev, libusb_device_handle **handle, int fd);
 void LIBUSB_CALL libusb_close(libusb_device_handle *dev_handle);
 libusb_device * LIBUSB_CALL libusb_get_device(libusb_device_handle *dev_handle);
+libusb_device * LIBUSB_CALL libusb_get_device2(libusb_context *ctx, const char *dev_node);
 
 int LIBUSB_CALL libusb_set_configuration(libusb_device_handle *dev,
 	int configuration);
@@ -1868,6 +1860,7 @@ typedef void (LIBUSB_CALL *libusb_pollfd_removed_cb)(int fd, void *user_data);
 
 const struct libusb_pollfd ** LIBUSB_CALL libusb_get_pollfds(
 	libusb_context *ctx);
+void LIBUSB_CALL libusb_free_pollfds(const struct libusb_pollfd **pollfds);
 void LIBUSB_CALL libusb_set_pollfd_notifiers(libusb_context *ctx,
 	libusb_pollfd_added_cb added_cb, libusb_pollfd_removed_cb removed_cb,
 	void *user_data);
@@ -1892,8 +1885,11 @@ typedef int libusb_hotplug_callback_handle;
  *
  * Flags for hotplug events */
 typedef enum {
+	/** Default value when not using any flags. */
+	LIBUSB_HOTPLUG_NO_FLAGS = 0,
+
 	/** Arm the callback and fire it for all matching currently attached devices. */
-	LIBUSB_HOTPLUG_ENUMERATE = 1,
+	LIBUSB_HOTPLUG_ENUMERATE = 1<<0,
 } libusb_hotplug_flag;
 
 /** \ingroup hotplug
